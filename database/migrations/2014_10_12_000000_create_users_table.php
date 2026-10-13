@@ -1,3 +1,4 @@
+
 <?php
 
 use Illuminate\Database\Migrations\Migration;
@@ -17,6 +18,10 @@ return new class extends Migration
             $table->string('email')->unique();
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
+
+            // 一般ユーザーは0、管理者は1
+            $table->boolean('admin_status')->default(false);
+
             $table->rememberToken();
             $table->timestamps();
         });
