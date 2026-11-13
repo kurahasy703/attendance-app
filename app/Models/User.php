@@ -20,6 +20,7 @@ class User extends Authenticatable
     protected $fillable = [
         'name',
         'email',
+        'email_verified_at',
         'password',
         'admin_status', // ★追記：管理者フラグも保存できるように追加
     ];

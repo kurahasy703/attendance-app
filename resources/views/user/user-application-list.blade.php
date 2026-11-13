@@ -36,7 +36,8 @@
                         <p class="table__header--item">詳細</p>
                     </th>
                 </tr>
-                @foreach ($formattedApplications as $application)
+
+                @foreach ($requests as $application)
                 @if ($application['approval_status'] === '承認待ち')
                 <tr class="table__row">
                     <td class="table__description">
@@ -84,7 +85,7 @@
                         <p class="table__header--item">詳細</p>
                     </th>
                 </tr>
-                @foreach ($formattedApplications as $application)
+                @foreach ($requests as $application)
                 @if ($application['approval_status'] === '承認済み')
                 <tr class="table__row">
                     <td class="table__description">
