@@ -43,3 +43,12 @@ Route::middleware('auth:sanctum')->post(
         'store'
     ]
 );
+// AP04：勤怠更新（認証必須）
+Route::middleware('auth:sanctum')->match(
+    ['put', 'patch'],
+    '/v1/attendance-records/{attendanceRecord}',
+    [
+        \App\Http\Controllers\Api\V1\AttendanceRecordController::class,
+        'update'
+    ]
+);

@@ -7,6 +7,7 @@ use App\Http\Requests\Api\V1\IndexAttendanceRecordRequest;
 use App\Models\AttendanceRecord;
 use App\Http\Resources\AttendanceRecordResource;
 use App\Http\Requests\Api\V1\StoreAttendanceRecordRequest;
+use App\Http\Requests\Api\V1\UpdateAttendanceRecordRequest;
 
 class AttendanceRecordController extends Controller
 {
@@ -79,5 +80,22 @@ class AttendanceRecordController extends Controller
         return (new AttendanceRecordResource($attendanceRecord))
             ->response()
             ->setStatusCode(201);
+    }
+    // AP04：指定された勤怠記録を更新する
+    public function update(
+        UpdateAttendanceRecordRequest $request,
+        AttendanceRecord $attendanceRecord
+    ) {
+        // 本人または管理者だけに更新を許可する
+        $this->authorize('update', $attendanceRecord);
+
+        // 入力チェックを通過した項目だけを更新する
+        $attendanceRecord->update($request->validated());
+
+        // 更新後のユーザー・休憩情報を読み込む
+        $attendanceRecord->load(['user', 'breaks']);
+
+        // 更新した勤怠情報を返す
+        return new AttendanceRecordResource($attendanceRecord);
     }
 }
