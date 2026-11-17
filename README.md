@@ -1,66 +1,137 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# 勤怠管理アプリ
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+## アプリケーション概要
 
-## About Laravel
+Laravel 10を使用して開発した勤怠管理アプリケーションです。
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+一般ユーザーの出退勤・休憩の記録、勤怠一覧・詳細の確認、勤怠修正申請、管理者による勤怠管理・申請承認に対応しています。
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+また、月別の勤怠レポート表示と、勤怠情報を扱うAPI機能を実装しています。
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+## 使用技術
 
-## Learning Laravel
+- PHP 8系（Composer要件：8.1以上、9.0未満）
+- Laravel 10
+- Laravel Fortify
+- Laravel Sanctum
+- MySQL 8.4
+- Docker / Laravel Sail
+- phpMyAdmin
+- Mailpit
+- Vite 5
+- PHPUnit 10
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+## 環境構築
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+### 1. リポジトリの取得
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+```bash
+git clone git@github.com:kurahasy703/attendance-app.git
+cd attendance-app
+```
 
-## Laravel Sponsors
+※ SSH接続を設定していない場合は、HTTPSでクローンしてください。
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+### 2. PHPライブラリのインストール
 
-### Premium Partners
+Dockerを起動した状態で、Composerを利用して依存ライブラリをインストールします。
 
-- **[Vehikl](https://vehikl.com/)**
-- **[Tighten Co.](https://tighten.co)**
-- **[WebReinvent](https://webreinvent.com/)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel/)**
-- **[Cyber-Duck](https://cyber-duck.co.uk)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Jump24](https://jump24.co.uk)**
-- **[Redberry](https://redberry.international/laravel/)**
-- **[Active Logic](https://activelogic.com)**
-- **[byte5](https://byte5.de)**
-- **[OP.GG](https://op.gg)**
+ローカルにComposerがある場合：
 
-## Contributing
+```bash
+composer install
+```
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+Composerがない場合は、公式Composerイメージなどを利用してインストールしてください。
 
-## Code of Conduct
+### 3. 環境変数の設定
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+```bash
+cp .env.example .env
+```
 
-## Security Vulnerabilities
+`.env` のデータベース設定を確認してください。
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+```dotenv
+DB_CONNECTION=mysql
+DB_HOST=mysql
+DB_PORT=3306
+DB_DATABASE=laravel
+DB_USERNAME=sail
+DB_PASSWORD=password
+```
 
-## License
+※ `password` はローカル開発用の設定例です。
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+### 4. Dockerコンテナの起動
+
+```bash
+./vendor/bin/sail up -d
+```
+
+### 5. アプリケーションキーの生成
+
+```bash
+./vendor/bin/sail artisan key:generate
+```
+
+### 6. データベースの作成
+
+```bash
+./vendor/bin/sail artisan migrate
+```
+
+### 7. テストデータの登録
+
+```bash
+./vendor/bin/sail artisan db:seed
+```
+
+Seederを実行すると、一般ユーザー2名と管理者1名、および勤怠・休憩のサンプルデータが登録されます。
+
+確認済みのデータ件数：
+
+| ユーザー          | 勤怠件数 |
+| ----------------- | -------: |
+| user1@example.com |     92件 |
+| user2@example.com |     90件 |
+| user3@example.com |     90件 |
+| 合計              |    272件 |
+
+### 8. フロントエンドのビルド
+
+```bash
+./vendor/bin/sail npm install
+./vendor/bin/sail npm run build
+```
+
+### 9. アプリケーションへのアクセス
+
+- 一般ユーザーログイン：`http://localhost/login`
+- 管理者ログイン：`http://localhost/admin/login`
+- phpMyAdmin：`http://localhost:8080`
+- Mailpit：`http://localhost:8025`
+
+※ ポートを変更している場合は、変更後の番号を使用してください。
+
+## テストアカウント
+
+| 種別          | メールアドレス    | パスワード |
+| ------------- | ----------------- | ---------- |
+| 一般ユーザー1 | user1@example.com | password   |
+| 一般ユーザー2 | user2@example.com | password   |
+| 管理者        | user3@example.com | password   |
+
+これらはSeederで登録する開発・動作確認用アカウントです。
+
+## API
+
+Laravel Sanctumを利用したAPI認証と、勤怠情報を扱うAPIを実装しています。
+
+APIのエンドポイント、リクエスト・レスポンス形式については、API仕様書との最終照合後に記載します。
+
+## 自動テスト
+
+```bash
+./vendor/bin/sail test --do-not-cache-result
+```
