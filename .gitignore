@@ -17,3 +17,8 @@ yarn-error.log
 /.fleet
 /.idea
 /.vscode
+
+backups/
+
+.env.testing
+/resources-backup-before-advanced/

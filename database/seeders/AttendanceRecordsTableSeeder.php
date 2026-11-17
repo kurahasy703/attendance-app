@@ -16,8 +16,7 @@ class AttendanceRecordsTableSeeder extends Seeder
 
         // ① 過去5か月分：各月15日
         for ($month = 1; $month <= 5; $month++) {
-            $date = Carbon::now()
-                ->startOfMonth()
+            $date = Carbon::create(2026, 10, 1)
                 ->subMonthsNoOverflow($month);
 
             $targetMonth = $date->month;
@@ -51,7 +50,7 @@ class AttendanceRecordsTableSeeder extends Seeder
             ['08:00:00', '21:00:00', 1],  // 長時間勤務
         ];
 
-        $date = Carbon::now()->startOfMonth();
+        $date = Carbon::create(2026, 10, 1);
         $endOfMonth = $date->copy()->endOfMonth();
 
         foreach ($workPatterns as $pattern) {

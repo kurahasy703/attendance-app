@@ -10,10 +10,12 @@ class ExampleTest extends TestCase
     /**
      * A basic test example.
      */
-    public function test_the_application_returns_a_successful_response(): void
+    public function test_the_application_redirects_to_attendance(): void
     {
+        // トップページにアクセスする
         $response = $this->get('/');
 
-        $response->assertStatus(200);
+        // 勤怠登録画面へのリダイレクトを確認する
+        $response->assertRedirect(route('attendance.index'));
     }
 }

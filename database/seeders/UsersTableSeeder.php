@@ -11,7 +11,7 @@ class UsersTableSeeder extends Seeder
     public function run(): void
     {
         // 1. 一般ユーザー1
-        User::firstOrCreate(
+        User::updateOrCreate(
             ['email' => 'user1@example.com'],
             [
                 'name' => 'テスト太郎',
@@ -23,7 +23,7 @@ class UsersTableSeeder extends Seeder
         );
 
         // 2. 一般ユーザー2
-        User::firstOrCreate(
+        User::updateOrCreate(
             ['email' => 'user2@example.com'],
             [
                 'name' => 'テスト花子',
@@ -35,7 +35,7 @@ class UsersTableSeeder extends Seeder
         );
 
         // 3. 管理者ユーザー
-        User::firstOrCreate(
+        User::updateOrCreate(
             ['email' => 'user3@example.com'],
             [
                 'name' => '管理者ユーザー',

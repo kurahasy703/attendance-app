@@ -35,19 +35,19 @@ class AttendanceRecordPolicy
     /**
      * Determine whether the user can update the model.
      */
+    // 本人の勤怠のみ更新を許可する
     public function update(User $user, AttendanceRecord $attendanceRecord): bool
     {
-        return $user->admin_status == 1
-            || $user->id == $attendanceRecord->user_id;
+        return $user->id == $attendanceRecord->user_id;
     }
 
     /**
      * Determine whether the user can delete the model.
      */
+    // 本人の勤怠のみ削除を許可する
     public function delete(User $user, AttendanceRecord $attendanceRecord): bool
     {
-        return $user->admin_status == 1
-            || $user->id == $attendanceRecord->user_id;
+        return $user->id == $attendanceRecord->user_id;
     }
     /**
      * Determine whether the user can restore the model.
@@ -63,5 +63,14 @@ class AttendanceRecordPolicy
     public function forceDelete(User $user, AttendanceRecord $attendanceRecord): bool
     {
         //
+    }
+    // 管理者はすべての操作を許可する
+    public function before(User $user, string $ability): ?bool
+    {
+        if ($user->admin_status == 1) {
+            return true;
+        }
+
+        return null;
     }
 }

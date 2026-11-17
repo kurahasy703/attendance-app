@@ -21,7 +21,7 @@ class AttendanceRecordController extends Controller
         $perPage = $filters['per_page'] ?? 20;
 
         // 勤怠情報と関連するユーザー・休憩情報を取得
-        $query = AttendanceRecord::with(['user', 'breaks']);
+        $query = AttendanceRecord::with(['user', 'breaksForCalculation']);
 
         // ユーザーIDで絞り込み
         if (isset($filters['user_id'])) {
@@ -74,7 +74,7 @@ class AttendanceRecordController extends Controller
             ->create($validated);
 
         // ユーザーと休憩情報を読み込む
-        $attendanceRecord->load(['user', 'breaks']);
+        $attendanceRecord->load(['user', 'breaksForCalculation']);
 
         // 登録した勤怠情報をHTTP 201で返す
         return (new AttendanceRecordResource($attendanceRecord))
@@ -92,8 +92,8 @@ class AttendanceRecordController extends Controller
         // 入力チェックを通過した項目だけを更新する
         $attendanceRecord->update($request->validated());
 
-        // 更新後のユーザー・休憩情報を読み込む
-        $attendanceRecord->load(['user', 'breaks']);
+        // 更新後のユーザー・時間計算用の休憩情報を読み込む
+        $attendanceRecord->load(['user', 'breaksForCalculation']);
 
         // 更新した勤怠情報を返す
         return new AttendanceRecordResource($attendanceRecord);
@@ -101,16 +101,13 @@ class AttendanceRecordController extends Controller
     // AP05：勤怠削除API
     public function destroy(AttendanceRecord $attendanceRecord)
     {
-        try {
-            $this->authorize('delete', $attendanceRecord);
-        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
-            return response()->json([
-                'error' => 'この操作を実行する権限がありません。'
-            ], 403);
-        }
+        // 本人または管理者だけに削除を許可する
+        $this->authorize('delete', $attendanceRecord);
 
+        // 勤怠記録を削除する
         $attendanceRecord->delete();
 
+        // 削除成功：204 No Content
         return response()->noContent();
     }
 }
