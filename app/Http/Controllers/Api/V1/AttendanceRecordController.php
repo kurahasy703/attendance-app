@@ -98,4 +98,19 @@ class AttendanceRecordController extends Controller
         // 更新した勤怠情報を返す
         return new AttendanceRecordResource($attendanceRecord);
     }
+    // AP05：勤怠削除API
+    public function destroy(AttendanceRecord $attendanceRecord)
+    {
+        try {
+            $this->authorize('delete', $attendanceRecord);
+        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+            return response()->json([
+                'error' => 'この操作を実行する権限がありません。'
+            ], 403);
+        }
+
+        $attendanceRecord->delete();
+
+        return response()->noContent();
+    }
 }

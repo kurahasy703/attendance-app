@@ -46,9 +46,9 @@ class AttendanceRecordPolicy
      */
     public function delete(User $user, AttendanceRecord $attendanceRecord): bool
     {
-        //
+        return $user->admin_status == 1
+            || $user->id == $attendanceRecord->user_id;
     }
-
     /**
      * Determine whether the user can restore the model.
      */

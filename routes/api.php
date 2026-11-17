@@ -52,3 +52,14 @@ Route::middleware('auth:sanctum')->match(
         'update'
     ]
 );
+// AP05：勤怠削除API
+Route::middleware('auth:sanctum')
+    ->delete('/v1/attendance-records/{attendanceRecord}', [
+        \App\Http\Controllers\Api\V1\AttendanceRecordController::class,
+        'destroy'
+    ])
+    ->missing(function () {
+        return response()->json([
+            'error' => '勤怠情報が見つかりませんでした。'
+        ], 404);
+    });
