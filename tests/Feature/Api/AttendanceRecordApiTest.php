@@ -665,4 +665,53 @@ class AttendanceRecordApiTest extends TestCase
             'id' => $break->id,
         ]);
     }
+    /**
+     * 勤怠削除時に修正申請と申請用休憩記録も削除される
+     */
+    public function test_deleting_attendance_also_deletes_correction_requests_and_breaks(): void
+    {
+        $user = User::factory()->create();
+
+        $attendance = AttendanceRecord::create([
+            'user_id' => $user->id,
+            'date' => '2026-11-18',
+            'clock_in' => '09:00:00',
+            'clock_out' => '18:00:00',
+        ]);
+
+        $request = StampCorrectionRequest::create([
+            'attendance_record_id' => $attendance->id,
+            'date' => '2026-11-18',
+            'clock_in' => '09:00:00',
+            'clock_out' => '18:00:00',
+            'comment' => '修正申請',
+            'status' => 'pending',
+        ]);
+
+        $requestBreak = StampCorrectionRequestBreak::create([
+            'stamp_correction_request_id' => $request->id,
+            'break_in' => '12:00:00',
+            'break_out' => '13:00:00',
+        ]);
+
+        Sanctum::actingAs($user);
+
+        $response = $this->deleteJson(
+            "/api/v1/attendance-records/{$attendance->id}"
+        );
+
+        $response->assertStatus(204);
+
+        $this->assertDatabaseMissing('attendance_records', [
+            'id' => $attendance->id,
+        ]);
+
+        $this->assertDatabaseMissing('stamp_correction_requests', [
+            'id' => $request->id,
+        ]);
+
+        $this->assertDatabaseMissing('stamp_correction_request_breaks', [
+            'id' => $requestBreak->id,
+        ]);
+    }
 }
