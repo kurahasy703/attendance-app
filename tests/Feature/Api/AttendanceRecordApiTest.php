@@ -7,7 +7,9 @@ use App\Models\User;
 use App\Models\AttendanceRecord;
 use Laravel\Sanctum\Sanctum;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-
+use App\Models\BreakTime;
+use App\Models\StampCorrectionRequest;
+use App\Models\StampCorrectionRequestBreak;
 
 class AttendanceRecordApiTest extends TestCase
 {
@@ -290,6 +292,377 @@ class AttendanceRecordApiTest extends TestCase
         // ⑥ データベースから削除されたことを確認する
         $this->assertDatabaseMissing('attendance_records', [
             'id' => $attendance->id,
+        ]);
+    }
+    /**
+     * 認証していないユーザーでも勤怠一覧を取得できる
+     */
+    public function test_guest_can_get_attendance_list(): void
+    {
+        // テスト用ユーザーを作成
+        $user = User::factory()->create([
+            'admin_status' => false,
+        ]);
+
+        // テスト用勤怠記録を作成
+        $attendance = AttendanceRecord::create([
+            'user_id' => $user->id,
+            'date' => '2026-11-18',
+            'clock_in' => '09:00:00',
+            'clock_out' => '18:00:00',
+        ]);
+
+        // ログインせずに勤怠一覧APIへアクセス
+        $response = $this->getJson('/api/v1/attendance-records');
+
+        // 正常に取得できることを確認
+        $response->assertStatus(200);
+
+        // 作成した勤怠記録が含まれていることを確認
+        $response->assertJsonFragment([
+            'id' => $attendance->id,
+            'user_id' => $user->id,
+            'user_name' => $user->name,
+        ]);
+
+        $response->assertJsonMissingPath('data.0.user');
+
+        // ページ分割に必要な項目があることを確認
+        $response->assertJsonStructure([
+            'data',
+            'links',
+            'meta',
+        ]);
+    }
+    /**
+     * user_idで指定したユーザーの勤怠だけを取得できる
+     */
+    public function test_can_filter_attendance_by_user_id(): void
+    {
+        // 2人のユーザーを作成
+        $userA = User::factory()->create();
+        $userB = User::factory()->create();
+
+        // それぞれの勤怠を作成
+        $attendanceA = AttendanceRecord::create([
+            'user_id' => $userA->id,
+            'date' => '2026-11-18',
+            'clock_in' => '09:00:00',
+            'clock_out' => '18:00:00',
+        ]);
+
+        AttendanceRecord::create([
+            'user_id' => $userB->id,
+            'date' => '2026-11-18',
+            'clock_in' => '10:00:00',
+            'clock_out' => '19:00:00',
+        ]);
+
+        // ユーザーAの勤怠だけを検索
+        $response = $this->getJson(
+            '/api/v1/attendance-records?user_id=' . $userA->id
+        );
+
+        // 正常に取得できることを確認
+        $response->assertStatus(200);
+
+        // ユーザーAの勤怠だけが返ることを確認
+        $response->assertJsonCount(1, 'data');
+        $response->assertJsonPath('data.0.id', $attendanceA->id);
+        $response->assertJsonPath('data.0.user_id', $userA->id);
+    }
+    /**
+     * dateで指定した日付の勤怠だけを取得できる
+     */
+    public function test_can_filter_attendance_by_date(): void
+    {
+        // テスト用ユーザーを作成
+        $user = User::factory()->create();
+
+        // 11月18日の勤怠を作成
+        $attendance = AttendanceRecord::create([
+            'user_id' => $user->id,
+            'date' => '2026-11-18',
+            'clock_in' => '09:00:00',
+            'clock_out' => '18:00:00',
+        ]);
+
+        // 11月19日の勤怠を作成
+        AttendanceRecord::create([
+            'user_id' => $user->id,
+            'date' => '2026-11-19',
+            'clock_in' => '09:00:00',
+            'clock_out' => '18:00:00',
+        ]);
+
+        // 11月18日の勤怠だけを検索
+        $response = $this->getJson(
+            '/api/v1/attendance-records?date=2026-11-18'
+        );
+
+        // 正常に取得できることを確認
+        $response->assertStatus(200);
+
+        // 11月18日の勤怠だけが1件返ることを確認
+        $response->assertJsonCount(1, 'data');
+        $response->assertJsonPath('data.0.id', $attendance->id);
+        $response->assertJsonPath('data.0.date', '2026-11-18');
+    }
+    /**
+     * monthで指定した月の勤怠だけを取得できる
+     */
+    public function test_can_filter_attendance_by_month(): void
+    {
+        // テスト用ユーザーを作成
+        $user = User::factory()->create();
+
+        // 10月の勤怠を作成
+        AttendanceRecord::create([
+            'user_id' => $user->id,
+            'date' => '2026-10-18',
+            'clock_in' => '09:00:00',
+            'clock_out' => '18:00:00',
+        ]);
+
+        // 11月の勤怠を作成
+        $attendance = AttendanceRecord::create([
+            'user_id' => $user->id,
+            'date' => '2026-11-18',
+            'clock_in' => '09:00:00',
+            'clock_out' => '18:00:00',
+        ]);
+
+        // 11月の勤怠だけを検索
+        $response = $this->getJson(
+            '/api/v1/attendance-records?month=2026-11'
+        );
+
+        // 正常に取得できることを確認
+        $response->assertStatus(200);
+
+        // 11月の勤怠だけが1件返ることを確認
+        $response->assertJsonCount(1, 'data');
+        $response->assertJsonPath('data.0.id', $attendance->id);
+        $response->assertJsonPath('data.0.date', '2026-11-18');
+    }
+    /**
+     * 勤怠一覧を指定件数でページ分割できる
+     */
+    public function test_can_paginate_attendance_records(): void
+    {
+        // テスト用ユーザーを作成
+        $user = User::factory()->create();
+
+        // 3日分の勤怠を作成
+        foreach (['2026-11-16', '2026-11-17', '2026-11-18'] as $date) {
+            AttendanceRecord::create([
+                'user_id' => $user->id,
+                'date' => $date,
+                'clock_in' => '09:00:00',
+                'clock_out' => '18:00:00',
+            ]);
+        }
+
+        // 1ページ目を取得（1ページ2件）
+        $page1 = $this->getJson(
+            '/api/v1/attendance-records?per_page=2&page=1'
+        );
+
+        // 2ページ目を取得
+        $page2 = $this->getJson(
+            '/api/v1/attendance-records?per_page=2&page=2'
+        );
+
+        // 両方とも正常に取得できる
+        $page1->assertStatus(200);
+        $page2->assertStatus(200);
+
+        // 1ページ目は2件、2ページ目は1件
+        $page1->assertJsonCount(2, 'data');
+        $page2->assertJsonCount(1, 'data');
+
+        // 全体の件数とページ情報を確認
+        $page1->assertJsonPath('meta.total', 3);
+        $page1->assertJsonPath('meta.current_page', 1);
+        $page2->assertJsonPath('meta.current_page', 2);
+    }
+    /**
+     * 一般ユーザーは他人の勤怠を更新できない
+     */
+    public function test_user_cannot_update_another_users_attendance(): void
+    {
+        // 勤怠の所有者
+        $owner = User::factory()->create([
+            'admin_status' => false,
+        ]);
+
+        // 別の一般ユーザー
+        $otherUser = User::factory()->create([
+            'admin_status' => false,
+        ]);
+
+        // 所有者の勤怠記録
+        $attendance = AttendanceRecord::create([
+            'user_id' => $owner->id,
+            'date' => '2026-11-18',
+            'clock_in' => '09:00:00',
+            'clock_out' => '18:00:00',
+            'comment' => '更新前',
+        ]);
+
+        // 別のユーザーとして認証
+        Sanctum::actingAs($otherUser);
+
+        // 他人の勤怠を更新しようとする
+        $response = $this->patchJson(
+            "/api/v1/attendance-records/{$attendance->id}",
+            [
+                'comment' => '不正な更新',
+            ]
+        );
+
+        // 403エラーになることを確認
+        $response->assertStatus(403);
+
+        // エラーメッセージを確認
+        $response->assertJson([
+            'error' => 'この操作を実行する権限がありません。',
+        ]);
+
+        // データが変更されていないことを確認
+        $this->assertDatabaseHas('attendance_records', [
+            'id' => $attendance->id,
+            'comment' => '更新前',
+        ]);
+    }
+    /**
+     * 管理者は他のユーザーの勤怠を更新できる
+     */
+    public function test_admin_can_update_another_users_attendance(): void
+    {
+        // 一般ユーザーを作成
+        $user = User::factory()->create([
+            'admin_status' => false,
+        ]);
+
+        // 管理者を作成
+        $admin = User::factory()->create([
+            'admin_status' => true,
+        ]);
+
+        // 一般ユーザーの勤怠を作成
+        $attendance = AttendanceRecord::create([
+            'user_id' => $user->id,
+            'date' => '2026-11-18',
+            'clock_in' => '09:00:00',
+            'clock_out' => '18:00:00',
+            'comment' => '更新前',
+        ]);
+
+        // 管理者として認証
+        Sanctum::actingAs($admin);
+
+        // 一般ユーザーの勤怠を更新
+        $response = $this->patchJson(
+            "/api/v1/attendance-records/{$attendance->id}",
+            [
+                'comment' => '管理者が更新',
+            ]
+        );
+
+        // 更新成功を確認
+        $response->assertStatus(200);
+        $response->assertJsonPath('data.comment', '管理者が更新');
+
+        // データベースにも反映されていることを確認
+        $this->assertDatabaseHas('attendance_records', [
+            'id' => $attendance->id,
+            'comment' => '管理者が更新',
+        ]);
+    }
+    /**
+     * 管理者は他のユーザーの勤怠を削除できる
+     */
+    public function test_admin_can_delete_another_users_attendance(): void
+    {
+        // 一般ユーザーを作成
+        $user = User::factory()->create([
+            'admin_status' => false,
+        ]);
+
+        // 管理者を作成
+        $admin = User::factory()->create([
+            'admin_status' => true,
+        ]);
+
+        // 一般ユーザーの勤怠を作成
+        $attendance = AttendanceRecord::create([
+            'user_id' => $user->id,
+            'date' => '2026-11-18',
+            'clock_in' => '09:00:00',
+            'clock_out' => '18:00:00',
+        ]);
+
+        // 管理者として認証
+        Sanctum::actingAs($admin);
+
+        // 一般ユーザーの勤怠を削除
+        $response = $this->deleteJson(
+            "/api/v1/attendance-records/{$attendance->id}"
+        );
+
+        // 削除成功（HTTP 204）を確認
+        $response->assertStatus(204);
+
+        // データベースから削除されていることを確認
+        $this->assertDatabaseMissing('attendance_records', [
+            'id' => $attendance->id,
+        ]);
+    }
+    /**
+     * 勤怠を削除すると関連する休憩記録も削除される
+     */
+    public function test_deleting_attendance_also_deletes_breaks(): void
+    {
+        // テスト用ユーザーを作成
+        $user = User::factory()->create([
+            'admin_status' => false,
+        ]);
+
+        // 勤怠記録を作成
+        $attendance = AttendanceRecord::create([
+            'user_id' => $user->id,
+            'date' => '2026-11-18',
+            'clock_in' => '09:00:00',
+            'clock_out' => '18:00:00',
+        ]);
+
+        // 関連する休憩記録を作成
+        $break = BreakTime::create([
+            'attendance_record_id' => $attendance->id,
+            'break_in' => '12:00:00',
+            'break_out' => '13:00:00',
+        ]);
+
+        // 勤怠の所有者として認証
+        Sanctum::actingAs($user);
+
+        // 勤怠記録を削除
+        $response = $this->deleteJson(
+            "/api/v1/attendance-records/{$attendance->id}"
+        );
+
+        // 削除成功を確認
+        $response->assertStatus(204);
+
+        // 勤怠記録が削除されたことを確認
+        $this->assertDatabaseMissing('attendance_records', [
+            'id' => $attendance->id,
+        ]);
+
+        // 関連する休憩記録も削除されたことを確認
+        $this->assertDatabaseMissing('breaks', [
+            'id' => $break->id,
         ]);
     }
 }
