@@ -112,7 +112,17 @@ Route::middleware(['auth'])->group(
         Route::post('/stamp_correction_request/store', [StampCorrectionRequestController::class, 'store'])->name('[不審なリンクを削除しました]');
 
         // PG06: 申請一覧画面（一般）
-        Route::get('/stamp_correction_request/list', [StampCorrectionRequestController::class, 'list'])->name('stamp_correction_request.list');
+        // 管理者がアクセスした場合はPG12へ移動する
+        Route::get('/stamp_correction_request/list', function (Request $request) {
+
+            // 管理者の場合
+            if ($request->user()->admin_status) {
+                return redirect()->route('admin.stamp_correction_request.list');
+            }
+
+            // 一般ユーザーの場合
+            return app(StampCorrectionRequestController::class)->list($request);
+        })->name('stamp_correction_request.list');
 
 
 
