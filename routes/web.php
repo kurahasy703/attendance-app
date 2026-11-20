@@ -69,7 +69,8 @@ Route::middleware(['auth'])->group(
             ->name('attendance.detail');
 
         // PG14: マイ勤怠レポート画面
-        Route::get('/attendance/report', [AttendanceReportController::class, 'index'])->name('[不審なリンクを削除しました]');
+        Route::get('/attendance/report', [AttendanceReportController::class, 'index'])
+            ->name('attendance.report');
 
         // 勤怠詳細画面
         Route::get('/attendance/{id}', function ($id) {
@@ -109,7 +110,9 @@ Route::middleware(['auth'])->group(
             return app(AttendanceController::class)->storeCorrectionRequest($request, $id);
         });
 
-        Route::post('/stamp_correction_request/store', [StampCorrectionRequestController::class, 'store'])->name('[不審なリンクを削除しました]');
+        // 一般ユーザー：勤怠修正申請を保存する
+        Route::post('/stamp_correction_request/store', [StampCorrectionRequestController::class, 'store'])
+            ->name('stamp_correction_request.store');
 
         // PG06: 申請一覧画面（一般）
         // 管理者がアクセスした場合はPG12へ移動する
