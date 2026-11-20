@@ -10,6 +10,9 @@ use App\Http\Controllers\Admin\AttendanceController as AdminAttendanceController
 use App\Http\Controllers\Admin\AdminLoginController;
 use App\Http\Controllers\Admin\AttendanceExportController;
 use App\Http\Controllers\Admin\StampCorrectionRequestController as AdminStampCorrectionRequestController;
+use Illuminate\Http\Request;
+
+
 // トップページ（/）にアクセスした場合は打刻画面へリダイレクト
 Route::get('/', function () {
     return redirect()->route('attendance.index');
@@ -95,7 +98,16 @@ Route::middleware(['auth'])->group(
 
 
 
-        Route::post('/attendance/{id}', [AttendanceController::class, 'storeCorrectionRequest']);
+        Route::post('/attendance/{id}', function (Request $request, $id) {
+
+            // 管理者の場合は、勤怠データを直接更新する
+            if ($request->user()->admin_status) {
+                return app(AdminAttendanceController::class)->update($request, $id);
+            }
+
+            // 一般ユーザーの場合は、従来どおり修正申請を作成する
+            return app(AttendanceController::class)->storeCorrectionRequest($request, $id);
+        });
 
         Route::post('/stamp_correction_request/store', [StampCorrectionRequestController::class, 'store'])->name('[不審なリンクを削除しました]');
 

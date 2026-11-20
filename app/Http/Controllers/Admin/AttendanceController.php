@@ -4,9 +4,11 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\AttendanceRecord;
+use App\Models\BreakTime;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class AttendanceController extends Controller
 {
@@ -81,6 +83,102 @@ class AttendanceController extends Controller
             'attendanceRecord',
             'user'
         ));
+    }
+    // 管理者がスタッフの勤怠を直接修正する
+    public function update(Request $request, $id)
+    {
+        // 入力内容を確認する
+        $validated = $request->validate([
+            'new_clock_in' => ['required', 'date_format:H:i'],
+            'new_clock_out' => ['required', 'date_format:H:i', 'after:new_clock_in'],
+            'new_break_in' => ['nullable', 'array'],
+            'new_break_out' => ['nullable', 'array'],
+            'new_break_in.*' => ['nullable', 'date_format:H:i'],
+            'new_break_out.*' => ['nullable', 'date_format:H:i'],
+            'comment' => ['required', 'string', 'max:255'],
+        ]);
+
+        $breakIns = $validated['new_break_in'] ?? [];
+        $breakOuts = $validated['new_break_out'] ?? [];
+
+        // 休憩時間に矛盾がないか確認する
+        $breaks = [];
+
+        foreach (
+            array_unique(array_merge(
+                array_keys($breakIns),
+                array_keys($breakOuts)
+            )) as $index
+        ) {
+            $breakIn = $breakIns[$index] ?? '';
+            $breakOut = $breakOuts[$index] ?? '';
+
+            // 両方空欄なら保存しない
+            if (blank($breakIn) && blank($breakOut)) {
+                continue;
+            }
+
+            // 片方だけ入力されている場合はエラー
+            if (blank($breakIn) || blank($breakOut)) {
+                return back()->withErrors([
+                    'new_break_in.' . $index =>
+                    '休憩開始・終了時刻は両方入力してください。',
+                ])->withInput();
+            }
+
+            // 休憩は勤務時間内で、開始が終了より前であること
+            if (
+                $breakIn >= $breakOut ||
+                $breakIn < $validated['new_clock_in'] ||
+                $breakOut > $validated['new_clock_out']
+            ) {
+                return back()->withErrors([
+                    'new_break_in.' . $index =>
+                    '休憩時間を正しく入力してください。',
+                ])->withInput();
+            }
+
+            $breaks[] = [
+                'break_in' => $breakIn,
+                'break_out' => $breakOut,
+            ];
+        }
+
+        // 休憩同士の重複を確認する
+        usort(
+            $breaks,
+            fn($a, $b) =>
+            strcmp($a['break_in'], $b['break_in'])
+        );
+
+        for ($i = 1; $i < count($breaks); $i++) {
+            if ($breaks[$i]['break_in'] < $breaks[$i - 1]['break_out']) {
+                return back()->withErrors([
+                    'new_break_in' => '休憩時間が重複しています。',
+                ])->withInput();
+            }
+        }
+
+        // 勤怠記録と休憩記録をまとめて更新する
+        DB::transaction(function () use ($id, $validated, $breaks) {
+            $attendance = AttendanceRecord::findOrFail($id);
+
+            $attendance->update([
+                'clock_in' => $validated['new_clock_in'],
+                'clock_out' => $validated['new_clock_out'],
+                'comment' => $validated['comment'],
+            ]);
+
+            // 既存の休憩記録を置き換える
+            $attendance->breaks()->delete();
+
+            foreach ($breaks as $break) {
+                $attendance->breaks()->create($break);
+            }
+        });
+
+        // 更新後は管理者の勤怠詳細画面に戻る
+        return redirect()->route('admin.attendance.detail', ['id' => $id]);
     }
 
     // 管理者のスタッフ一覧画面を表示する
