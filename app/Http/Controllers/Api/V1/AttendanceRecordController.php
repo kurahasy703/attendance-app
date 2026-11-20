@@ -93,7 +93,7 @@ class AttendanceRecordController extends Controller
         $attendanceRecord->update($request->validated());
 
         // 更新後のユーザー・時間計算用の休憩情報を読み込む
-        $attendanceRecord->load(['user', 'breaksForCalculation']);
+        $attendanceRecord->load(['user', 'breaks']);
 
         // 更新した勤怠情報を返す
         return new AttendanceRecordResource($attendanceRecord);
