@@ -35,6 +35,10 @@ Route::get('/admin/login', function () {
 Route::post('/admin/login', [AdminLoginController::class, 'store'])
     ->middleware(['guest'])
     ->name('admin.login.store');
+// 管理者ログアウト（Fortifyの既存処理を利用）
+Route::post('/admin/logout', [AuthenticatedSessionController::class, 'destroy'])
+    ->middleware(['auth', 'admin'])
+    ->name('admin.logout');
 // ==========================================
 // 認証後のルート（ログイン必須グループ）
 // ==========================================
@@ -63,7 +67,7 @@ Route::middleware(['auth'])->group(
 
         // PG14: マイ勤怠レポート画面
         Route::get('/attendance/report', [AttendanceReportController::class, 'index'])->name('[不審なリンクを削除しました]');
-        
+
         // 勤怠詳細画面
         Route::get('/attendance/{id}', function ($id) {
             if (auth()->user()->admin_status) {
@@ -98,7 +102,7 @@ Route::middleware(['auth'])->group(
         // PG06: 申請一覧画面（一般）
         Route::get('/stamp_correction_request/list', [StampCorrectionRequestController::class, 'list'])->name('stamp_correction_request.list');
 
-     
+
 
         // PG08：管理者の勤怠一覧画面
         Route::get('/admin/attendance/list', [AdminAttendanceController::class, 'index'])
