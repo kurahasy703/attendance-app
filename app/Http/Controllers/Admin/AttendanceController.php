@@ -27,10 +27,29 @@ class AttendanceController extends Controller
             ->orderBy('id')
             ->get();
 
-        // 指定した日の勤怠記録を取得
         $attendanceRecords = AttendanceRecord::whereDate('date', $date->toDateString())
-            ->get();
+            ->with('breaks')
+            ->get()
+            ->map(function ($attendance) {
+                $breakMinutes = $attendance->total_break_time;
+                $workMinutes = $attendance->total_time;
 
+                return new \ArrayObject(
+                    [
+                        'id' => $attendance->id,
+                        'user_id' => $attendance->user_id,
+                        'clock_in' => $attendance->clock_in,
+                        'clock_out' => $attendance->clock_out,
+                        'total_break_time' => $breakMinutes > 0
+                            ? sprintf('%02d:%02d:00', intdiv($breakMinutes, 60), $breakMinutes % 60)
+                            : null,
+                        'total_time' => $workMinutes > 0
+                            ? sprintf('%02d:%02d:00', intdiv($workMinutes, 60), $workMinutes % 60)
+                            : null,
+                    ],
+                    \ArrayObject::ARRAY_AS_PROPS
+                );
+            });
         // 取得したデータを画面に渡す
         return view('admin.admin-attendance-list', compact(
             'date',
