@@ -107,6 +107,7 @@ class AttendanceController extends Controller
     public function update(Request $request, $id)
     {
         // 入力内容を確認する
+
         $validated = $request->validate([
             'new_clock_in' => ['required', 'date_format:H:i'],
             'new_clock_out' => ['required', 'date_format:H:i', 'after:new_clock_in'],
@@ -115,7 +116,15 @@ class AttendanceController extends Controller
             'new_break_in.*' => ['nullable', 'date_format:H:i'],
             'new_break_out.*' => ['nullable', 'date_format:H:i'],
             'comment' => ['required', 'string', 'max:255'],
+        ], [
+            'new_clock_in.required' => '出勤時間もしくは退勤時間が不適切な値です',
+            'new_clock_in.date_format' => '出勤時間もしくは退勤時間が不適切な値です',
+            'new_clock_out.required' => '出勤時間もしくは退勤時間が不適切な値です',
+            'new_clock_out.date_format' => '出勤時間もしくは退勤時間が不適切な値です',
+            'new_clock_out.after' => '出勤時間もしくは退勤時間が不適切な値です',
+            'comment.required' => '備考を記入してください',
         ]);
+
 
         $breakIns = $validated['new_break_in'] ?? [];
         $breakOuts = $validated['new_break_out'] ?? [];
@@ -141,27 +150,43 @@ class AttendanceController extends Controller
             if (blank($breakIn) || blank($breakOut)) {
                 return back()->withErrors([
                     'new_break_in.' . $index =>
-                    '休憩開始・終了時刻は両方入力してください。',
+                    '休憩時間が不適切な値です',
                 ])->withInput();
             }
 
-            // 休憩は勤務時間内で、開始が終了より前であること
+            // 休憩開始が勤務時間外の場合
             if (
-                $breakIn >= $breakOut ||
                 $breakIn < $validated['new_clock_in'] ||
-                $breakOut > $validated['new_clock_out']
+                $breakIn > $validated['new_clock_out']
             ) {
                 return back()->withErrors([
                     'new_break_in.' . $index =>
-                    '休憩時間を正しく入力してください。',
+                    '休憩時間が不適切な値です',
                 ])->withInput();
             }
 
+            // 休憩終了が退勤後の場合
+            if ($breakOut > $validated['new_clock_out']) {
+                return back()->withErrors([
+                    'new_break_out.' . $index =>
+                    '休憩時間もしくは退勤時間が不適切な値です',
+                ])->withInput();
+            }
+
+            // 休憩終了が休憩開始以前の場合
+            if ($breakIn >= $breakOut) {
+                return back()->withErrors([
+                    'new_break_in.' . $index =>
+                    '休憩時間が不適切な値です',
+                ])->withInput();
+            }
+
+            // 正常な休憩時間を配列に追加
             $breaks[] = [
                 'break_in' => $breakIn,
                 'break_out' => $breakOut,
             ];
-        }
+        } // foreachの終わり
 
         // 休憩同士の重複を確認する
         usort(
@@ -173,7 +198,7 @@ class AttendanceController extends Controller
         for ($i = 1; $i < count($breaks); $i++) {
             if ($breaks[$i]['break_in'] < $breaks[$i - 1]['break_out']) {
                 return back()->withErrors([
-                    'new_break_in' => '休憩時間が重複しています。',
+                    'new_break_in' => '休憩時間が重複しています',
                 ])->withInput();
             }
         }
