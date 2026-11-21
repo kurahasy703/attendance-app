@@ -27,8 +27,17 @@ class AttendanceRecordResource extends JsonResource
             'date' => $this->date,
             'clock_in' => $this->clock_in,
             'clock_out' => $this->clock_out,
-            'total_time' => $this->total_time,
-            'total_break_time' => $this->total_break_time,
+            'total_time' => sprintf(
+                '%02d:%02d',
+                intdiv($this->total_time, 60),
+                $this->total_time % 60
+            ),
+
+            'total_break_time' => sprintf(
+                '%02d:%02d',
+                intdiv($this->total_break_time, 60),
+                $this->total_break_time % 60
+            ),
             'comment' => $this->comment,
 
             'breaks' => AttendanceBreakResource::collection(

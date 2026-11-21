@@ -714,4 +714,185 @@ class AttendanceRecordApiTest extends TestCase
             'id' => $requestBreak->id,
         ]);
     }
+    /**
+     * 同じユーザーが同じ日付の勤怠を重複登録できない
+     */
+    public function test_user_cannot_store_duplicate_attendance_date(): void
+    {
+        $user = User::factory()->create();
+
+        AttendanceRecord::create([
+            'user_id' => $user->id,
+            'date' => '2026-11-18',
+            'clock_in' => '09:00:00',
+            'clock_out' => '18:00:00',
+        ]);
+
+        Sanctum::actingAs($user);
+
+        $response = $this->postJson('/api/v1/attendance-records', [
+            'date' => '2026-11-18',
+            'clock_in' => '10:00:00',
+            'clock_out' => '19:00:00',
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors(['date']);
+
+        $response->assertJsonPath(
+            'errors.date.0',
+            'この日付の勤怠は既に登録されています。'
+        );
+
+        $this->assertDatabaseCount('attendance_records', 1);
+    }
+    /**
+     * 出勤時刻が未入力の場合は422エラーになる
+     */
+    public function test_clock_in_is_required_when_storing_attendance(): void
+    {
+        $user = User::factory()->create();
+
+        Sanctum::actingAs($user);
+
+        $response = $this->postJson('/api/v1/attendance-records', [
+            'date' => '2026-11-18',
+            'clock_out' => '18:00:00',
+        ]);
+
+        $response->assertStatus(422);
+
+        $response->assertJsonValidationErrors(['clock_in']);
+
+        $response->assertJsonPath(
+            'errors.clock_in.0',
+            '出勤時刻は必須です。'
+        );
+
+        $this->assertDatabaseCount('attendance_records', 0);
+    }
+    /**
+     * 出勤時刻の形式が不正な場合は422エラーになる
+     */
+    public function test_clock_in_invalid_format_returns_422(): void
+    {
+        $user = User::factory()->create();
+
+        Sanctum::actingAs($user);
+
+        $response = $this->postJson('/api/v1/attendance-records', [
+            'date' => '2026-11-18',
+            'clock_in' => '09:00',
+            'clock_out' => '18:00:00',
+        ]);
+
+        $response->assertStatus(422);
+
+        $response->assertJsonValidationErrors(['clock_in']);
+
+        $response->assertJsonPath(
+            'errors.clock_in.0',
+            '出勤時刻は HH:MM:SS 形式で指定してください。'
+        );
+
+        $this->assertDatabaseCount('attendance_records', 0);
+    }
+    /**
+     * 備考が255文字を超える場合は422エラーになる
+     */
+    public function test_comment_over_255_characters_returns_422(): void
+    {
+        $user = User::factory()->create();
+
+        Sanctum::actingAs($user);
+
+        $response = $this->postJson('/api/v1/attendance-records', [
+            'date' => '2026-11-18',
+            'clock_in' => '09:00:00',
+            'clock_out' => '18:00:00',
+            'comment' => str_repeat('あ', 256),
+        ]);
+
+        $response->assertStatus(422);
+
+        $response->assertJsonValidationErrors(['comment']);
+
+        $response->assertJsonPath(
+            'errors.comment.0',
+            '備考は 255 文字以内で入力してください。'
+        );
+
+        $this->assertDatabaseCount('attendance_records', 0);
+    }
+    /**
+     * 勤怠更新時に同じユーザーの日付が重複すると422になる
+     */
+    public function test_update_duplicate_date_returns_422(): void
+    {
+        $user = User::factory()->create();
+
+        $attendance = AttendanceRecord::create([
+            'user_id' => $user->id,
+            'date' => '2026-11-18',
+            'clock_in' => '09:00:00',
+            'clock_out' => '18:00:00',
+        ]);
+
+        AttendanceRecord::create([
+            'user_id' => $user->id,
+            'date' => '2026-11-19',
+            'clock_in' => '09:00:00',
+            'clock_out' => '18:00:00',
+        ]);
+
+        Sanctum::actingAs($user);
+
+        $response = $this->patchJson(
+            "/api/v1/attendance-records/{$attendance->id}",
+            ['date' => '2026-11-19']
+        );
+
+        $response->assertStatus(422);
+
+        $response->assertJsonValidationErrors(['date']);
+
+        $response->assertJsonPath(
+            'errors.date.0',
+            'この日付の勤怠は既に登録されています。'
+        );
+
+        $this->assertDatabaseHas('attendance_records', [
+            'id' => $attendance->id,
+            'date' => '2026-11-18',
+        ]);
+    }
+    /**
+     * 未認証ユーザーは勤怠を削除できない
+     */
+    public function test_unauthenticated_user_cannot_delete_attendance(): void
+    {
+        $user = User::factory()->create();
+
+        $attendance = AttendanceRecord::create([
+            'user_id' => $user->id,
+            'date' => '2026-11-18',
+            'clock_in' => '09:00:00',
+            'clock_out' => '18:00:00',
+        ]);
+
+        $response = $this->deleteJson(
+            "/api/v1/attendance-records/{$attendance->id}"
+        );
+
+        $response->assertStatus(401);
+
+        $response->assertJsonPath(
+            'message',
+            'Unauthenticated.'
+        );
+
+        $this->assertDatabaseHas('attendance_records', [
+            'id' => $attendance->id,
+        ]);
+    }
 }
