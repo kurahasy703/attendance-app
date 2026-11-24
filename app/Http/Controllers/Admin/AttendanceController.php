@@ -183,6 +183,7 @@ class AttendanceController extends Controller
 
             // 正常な休憩時間を配列に追加
             $breaks[] = [
+                'index' => $index,
                 'break_in' => $breakIn,
                 'break_out' => $breakOut,
             ];
@@ -198,7 +199,7 @@ class AttendanceController extends Controller
         for ($i = 1; $i < count($breaks); $i++) {
             if ($breaks[$i]['break_in'] < $breaks[$i - 1]['break_out']) {
                 return back()->withErrors([
-                    'new_break_in' => '休憩時間が重複しています',
+                    'new_break_in.' . $breaks[$i]['index'] => '休憩時間が重複しています',
                 ])->withInput();
             }
         }
@@ -217,7 +218,10 @@ class AttendanceController extends Controller
             $attendance->breaks()->delete();
 
             foreach ($breaks as $break) {
-                $attendance->breaks()->create($break);
+                $attendance->breaks()->create([
+                    'break_in' => $break['break_in'],
+                    'break_out' => $break['break_out'],
+                ]);
             }
         });
 

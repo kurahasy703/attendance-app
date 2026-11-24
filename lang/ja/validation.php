@@ -2,7 +2,7 @@
 
 return [
     'required' => ':attributeを入力してください',
-    'email' => ':attributeはメールアドレスの形式で入力してください',
+    'email' => ':attributeはメール形式で入力してください',
     'unique' => ':attributeはすでに登録されています',
     'confirmed' => 'パスワードと一致しません',
     'date_format' => ':attributeの形式が正しくありません',

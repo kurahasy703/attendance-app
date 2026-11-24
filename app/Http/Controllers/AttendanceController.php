@@ -255,16 +255,36 @@ class AttendanceController extends Controller
         // フォームから送られた値を確認する
         $validated = $request->validate([
             'new_clock_in' => ['required', 'date_format:H:i'],
-            'new_clock_out' => ['required', 'date_format:H:i'],
+            'new_clock_out' => ['required', 'date_format:H:i', 'after:new_clock_in'],
             'new_break_in' => ['nullable', 'array'],
             'new_break_out' => ['nullable', 'array'],
             'new_break_in.*' => ['nullable', 'date_format:H:i'],
             'new_break_out.*' => ['nullable', 'date_format:H:i'],
             'comment' => ['required', 'string', 'max:255'],
+        ], [
+            'new_clock_out.after' => '出勤時間もしくは退勤時間が不適切な値です',
+            'comment.required' => '備考を記入してください',
         ]);
 
         $breakIns = $validated['new_break_in'] ?? [];
         $breakOuts = $validated['new_break_out'] ?? [];
+        // 休憩開始が出勤時刻より前になっていないか確認する
+        foreach ($breakIns as $index => $breakIn) {
+            if ($breakIn !== null && $breakIn < $validated['new_clock_in']) {
+                return back()->withErrors([
+                    'new_break_in.' . $index => '休憩時間が不適切な値です',
+                ])->withInput();
+            }
+        }
+
+        // 休憩終了が退勤時刻より後になっていないか確認する
+        foreach ($breakOuts as $index => $breakOut) {
+            if ($breakOut !== null && $breakOut > $validated['new_clock_out']) {
+                return back()->withErrors([
+                    'new_break_out.' . $index => '休憩時間もしくは退勤時間が不適切な値です',
+                ])->withInput();
+            }
+        }
 
         // 休憩開始・終了の片方だけが入力されていないか確認する
         foreach (
@@ -276,9 +296,20 @@ class AttendanceController extends Controller
             $breakIn = $breakIns[$index] ?? '';
             $breakOut = $breakOuts[$index] ?? '';
 
-            if (($breakIn === '') !== ($breakOut === '')) {
+            if (blank($breakIn) !== blank($breakOut)) {
                 return back()->withErrors([
-                    'breaks' => '休憩の開始時刻と終了時刻は両方入力してください。',
+                    'new_break_in.' . $index => '休憩の開始時刻と終了時刻は両方入力してください。',
+                ])->withInput();
+            }
+        }
+
+        // 休憩開始が休憩終了より前になっているか確認する
+        foreach ($breakIns as $index => $breakIn) {
+            $breakOut = $breakOuts[$index] ?? null;
+
+            if ($breakIn !== null && $breakOut !== null && $breakIn >= $breakOut) {
+                return back()->withErrors([
+                    'new_break_in.' . $index => '休憩時間が不適切な値です',
                 ])->withInput();
             }
         }
