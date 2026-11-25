@@ -45,7 +45,7 @@ Route::post('/admin/logout', [AuthenticatedSessionController::class, 'destroy'])
 // ==========================================
 // 認証後のルート（ログイン必須グループ）
 // ==========================================
-Route::middleware(['auth'])->group(
+Route::middleware(['auth', 'verified'])->group(
     function () {
 
         // PG03：打刻画面表示・打刻処理

@@ -25,6 +25,10 @@ class FortifyServiceProvider extends ServiceProvider
         Fortify::registerView(function () {
             return view('user.register');
         });
+        // メール認証画面（FN011）
+        Fortify::verifyEmailView(function () {
+            return view('auth.verify-email');
+        });
 
         // ログイン画面（URLに応じて一般・管理者を分岐）
         Fortify::loginView(function (Request $request) {
