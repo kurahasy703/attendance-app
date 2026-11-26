@@ -944,6 +944,77 @@ class AttendanceRecordApiTest extends TestCase
         ]);
     }
     /**
+     * 未認証ユーザーは勤怠を更新できない
+     */
+    public function test_unauthenticated_user_cannot_update_attendance(): void
+    {
+        $owner = User::factory()->create();
+
+        $attendance = AttendanceRecord::create([
+            'user_id' => $owner->id,
+            'date' => '2026-11-18',
+            'clock_in' => '09:00:00',
+            'clock_out' => '18:00:00',
+            'comment' => '更新前',
+        ]);
+
+        $response = $this->patchJson(
+            "/api/v1/attendance-records/{$attendance->id}",
+            [
+                'comment' => '不正な更新',
+            ]
+        );
+
+        $response->assertStatus(401);
+
+        $response->assertJsonPath(
+            'message',
+            'Unauthenticated.'
+        );
+
+        $this->assertDatabaseHas('attendance_records', [
+            'id' => $attendance->id,
+            'comment' => '更新前',
+        ]);
+    }
+    /**
+     * 認証済みユーザーはPUTで自分の勤怠を更新できる
+     */
+    public function test_user_can_update_own_attendance_with_put(): void
+    {
+        $user = User::factory()->create();
+
+        $attendance = AttendanceRecord::create([
+            'user_id' => $user->id,
+            'date' => '2026-11-18',
+            'clock_in' => '09:00:00',
+            'clock_out' => '18:00:00',
+            'comment' => '更新前',
+        ]);
+
+        Sanctum::actingAs($user);
+
+        $response = $this->putJson(
+            "/api/v1/attendance-records/{$attendance->id}",
+            [
+                'date' => '2026-11-18',
+                'clock_in' => '09:00:00',
+                'clock_out' => '19:00:00',
+                'comment' => 'PUTで更新',
+            ]
+        );
+
+        $response->assertStatus(200);
+
+        $response->assertJsonPath('data.comment', 'PUTで更新');
+
+        $this->assertDatabaseHas('attendance_records', [
+            'id' => $attendance->id,
+            'clock_out' => '19:00:00',
+            'comment' => 'PUTで更新',
+        ]);
+    }
+    /**
      * 未認証ユーザーは勤怠を削除できない
      */
     public function test_unauthenticated_user_cannot_delete_attendance(): void
@@ -970,6 +1041,25 @@ class AttendanceRecordApiTest extends TestCase
 
         $this->assertDatabaseHas('attendance_records', [
             'id' => $attendance->id,
+        ]);
+    }
+    /**
+     * 存在しない勤怠記録は削除できず404を返す
+     */
+    public function test_cannot_delete_nonexistent_attendance(): void
+    {
+        $user = User::factory()->create();
+
+        Sanctum::actingAs($user);
+
+        $response = $this->deleteJson(
+            '/api/v1/attendance-records/999999'
+        );
+
+        $response->assertStatus(404);
+
+        $response->assertJson([
+            'error' => '勤怠情報が見つかりませんでした。',
         ]);
     }
 }
