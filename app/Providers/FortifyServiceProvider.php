@@ -21,6 +21,11 @@ class FortifyServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        $this->app->bind(
+            \Laravel\Fortify\Http\Requests\LoginRequest::class,
+            \App\Http\Requests\LoginRequest::class
+        );
+
         // 一般ユーザー会員登録画面（PG01）
         Fortify::registerView(function () {
             return view('user.register');

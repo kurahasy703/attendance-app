@@ -270,7 +270,13 @@ class AttendanceController extends Controller
         $breakOuts = $validated['new_break_out'] ?? [];
         // 休憩開始が出勤時刻より前になっていないか確認する
         foreach ($breakIns as $index => $breakIn) {
-            if ($breakIn !== null && $breakIn < $validated['new_clock_in']) {
+            if (
+                $breakIn !== null &&
+                (
+                    $breakIn < $validated['new_clock_in'] ||
+                    $breakIn > $validated['new_clock_out']
+                )
+            ) {
                 return back()->withErrors([
                     'new_break_in.' . $index => '休憩時間が不適切な値です',
                 ])->withInput();
