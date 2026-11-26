@@ -747,6 +747,57 @@ class AttendanceRecordApiTest extends TestCase
         $this->assertDatabaseCount('attendance_records', 1);
     }
     /**
+     * 勤怠日が未入力の場合は422エラーになる
+     */
+    public function test_date_is_required_when_storing_attendance(): void
+    {
+        $user = User::factory()->create();
+
+        Sanctum::actingAs($user);
+
+        $response = $this->postJson('/api/v1/attendance-records', [
+            'clock_in' => '09:00:00',
+            'clock_out' => '18:00:00',
+        ]);
+
+        $response->assertStatus(422);
+
+        $response->assertJsonValidationErrors(['date']);
+
+        $response->assertJsonPath(
+            'errors.date.0',
+            '勤怠日は必須です。'
+        );
+
+        $this->assertDatabaseCount('attendance_records', 0);
+    }
+    /**
+     * 勤怠日の形式が不正な場合は422エラーになる
+     */
+    public function test_date_invalid_format_returns_422(): void
+    {
+        $user = User::factory()->create();
+
+        Sanctum::actingAs($user);
+
+        $response = $this->postJson('/api/v1/attendance-records', [
+            'date' => '2026/11/18',
+            'clock_in' => '09:00:00',
+            'clock_out' => '18:00:00',
+        ]);
+
+        $response->assertStatus(422);
+
+        $response->assertJsonValidationErrors(['date']);
+
+        $response->assertJsonPath(
+            'errors.date.0',
+            '勤怠日は YYYY-MM-DD 形式で指定してください。'
+        );
+
+        $this->assertDatabaseCount('attendance_records', 0);
+    }
+    /**
      * 出勤時刻が未入力の場合は422エラーになる
      */
     public function test_clock_in_is_required_when_storing_attendance(): void
@@ -793,6 +844,32 @@ class AttendanceRecordApiTest extends TestCase
         $response->assertJsonPath(
             'errors.clock_in.0',
             '出勤時刻は HH:MM:SS 形式で指定してください。'
+        );
+
+        $this->assertDatabaseCount('attendance_records', 0);
+    }
+    /**
+     * 退勤時刻の形式が不正な場合は422エラーになる
+     */
+    public function test_clock_out_invalid_format_returns_422(): void
+    {
+        $user = User::factory()->create();
+
+        Sanctum::actingAs($user);
+
+        $response = $this->postJson('/api/v1/attendance-records', [
+            'date' => '2026-11-18',
+            'clock_in' => '09:00:00',
+            'clock_out' => '18:00',
+        ]);
+
+        $response->assertStatus(422);
+
+        $response->assertJsonValidationErrors(['clock_out']);
+
+        $response->assertJsonPath(
+            'errors.clock_out.0',
+            '退勤時刻は HH:MM:SS 形式で指定してください。'
         );
 
         $this->assertDatabaseCount('attendance_records', 0);
